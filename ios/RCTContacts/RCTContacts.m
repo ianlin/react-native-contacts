@@ -38,14 +38,16 @@ RCT_EXPORT_METHOD(requestPermission:(RCTResponseSenderBlock) callback)
   });
 }
 
-RCT_EXPORT_METHOD(getAll:(RCTResponseSenderBlock) callback)
+RCT_EXPORT_METHOD(getAll:(NSString *) sortBy callback:(RCTResponseSenderBlock) callback)
 {
+  int personSortBy = [sortBy isEqualToString:@"lastName"] ? kABPersonSortByLastName : kABPersonSortByFirstName;
+
   ABAddressBookRef addressBookRef = ABAddressBookCreateWithOptions(NULL, nil);
   int authStatus = ABAddressBookGetAuthorizationStatus();
   if(authStatus != kABAuthorizationStatusAuthorized){
     ABAddressBookRequestAccessWithCompletion(addressBookRef, ^(bool granted, CFErrorRef error) {
       if(granted){
-        [self retrieveContactsFromAddressBook:addressBookRef withCallback:callback];
+        [self retrieveContactsFromAddressBook:addressBookRef sortBy:personSortBy withCallback:callback];
       }else{
         NSDictionary *error = @{
           @"type": @"permissionDenied"
@@ -55,14 +57,14 @@ RCT_EXPORT_METHOD(getAll:(RCTResponseSenderBlock) callback)
     });
   }
   else{
-    [self retrieveContactsFromAddressBook:addressBookRef withCallback:callback];
+    [self retrieveContactsFromAddressBook:addressBookRef sortBy:personSortBy withCallback:callback];
   }
 }
 
 -(void) retrieveContactsFromAddressBook:(ABAddressBookRef)addressBookRef
-withCallback:(RCTResponseSenderBlock) callback
+sortBy:(int) sortBy withCallback:(RCTResponseSenderBlock) callback
 {
-  NSArray *allContacts = (__bridge_transfer NSArray *)ABAddressBookCopyArrayOfAllPeopleInSourceWithSortOrdering(addressBookRef, NULL, kABPersonSortByLastName);
+  NSArray *allContacts = (__bridge_transfer NSArray *)ABAddressBookCopyArrayOfAllPeopleInSourceWithSortOrdering(addressBookRef, NULL, sortBy);
   int totalContacts = (int)[allContacts count];
   int currentIndex = 0;
   int maxIndex = --totalContacts;
