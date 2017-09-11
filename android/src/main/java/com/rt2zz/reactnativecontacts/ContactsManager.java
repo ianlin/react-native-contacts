@@ -21,7 +21,32 @@ import com.facebook.react.bridge.WritableArray;
 
 import java.util.ArrayList;
 
+//import com.facebook.react.bridge.WritableMap;
+//import com.facebook.react.bridge.Arguments;
+
+//import android.util.Log;
+//import com.google.firebase.crash.FirebaseCrash;
+
+//import com.squareup.okhttp.MediaType;
+//import com.squareup.okhttp.OkHttpClient;
+//import com.squareup.okhttp.Request;
+//import com.squareup.okhttp.RequestBody;
+//import com.squareup.okhttp.Response;
+
+//import java.util.Iterator;
+//import java.io.InputStream;
+//import java.io.ByteArrayOutputStream;
+//import java.io.IOException;
+
+//import org.json.JSONArray;
+//import org.json.JSONException;
+//import org.json.JSONObject;
+
+import android.util.Base64;
+
 public class ContactsManager extends ReactContextBaseJavaModule {
+
+    //public static final MediaType JSON = MediaType.parse("application/json; charset=utf-8");
 
     public ContactsManager(ReactApplicationContext reactContext) {
         super(reactContext);
@@ -46,6 +71,73 @@ public class ContactsManager extends ReactContextBaseJavaModule {
         getAllContacts(callback);
     }
 
+    /*
+    private WritableArray convertJSONArray(JSONArray jsonArray) {
+        WritableArray result = Arguments.createArray();
+        for (int i = 0; i < jsonArray.length(); i++) {
+            Object object;
+            try {
+                object = jsonArray.get(i);
+            } catch (JSONException e) {
+                return result;
+            }
+            if (object instanceof JSONObject) {
+                result.pushMap(convertJSONObject((JSONObject) object));
+            } else if (object instanceof JSONArray) {
+                result.pushArray(convertJSONArray((JSONArray) object));
+            } else if (object instanceof String) {
+                result.pushString((String) object);
+            } else if (object instanceof Integer) {
+                result.pushInt((int) object);
+            } else if (object instanceof Boolean) {
+                result.pushBoolean((Boolean) object);
+            } else if (object instanceof Double) {
+                result.pushDouble((Double) object);
+            }
+        }
+        return result;
+    }
+
+    private WritableMap convertJSONObject(JSONObject object) {
+        WritableMap result = Arguments.createMap();
+        Iterator<String> keyIterator = object.keys();
+        while (keyIterator.hasNext()) {
+            String key = keyIterator.next();
+            Object value;
+            try {
+                value = object.get(key);
+            } catch (JSONException e) {
+                return result;
+            }
+            if (value instanceof JSONObject) {
+                result.putMap(key, convertJSONObject((JSONObject) value));
+            } else if (value instanceof JSONArray) {
+                result.putArray(key, convertJSONArray((JSONArray) value));
+            } else if (value instanceof String) {
+                result.putString(key, (String) value);
+            } else if (value instanceof Integer) {
+                result.putInt(key, (int) value);
+            } else if (value instanceof Boolean) {
+                result.putBoolean(key, (Boolean) value);
+            } else if (value instanceof Double) {
+                result.putDouble(key, (Double) value);
+            }
+        }
+        return result;
+    }
+
+    String doPostRequest(OkHttpClient client, String url, String json) throws IOException {
+        //RequestBody body = RequestBody.create(JSON, json);
+        RequestBody body = RequestBody.create(MediaType.parse("text/plain"), json);
+        Request request = new Request.Builder()
+            .url(url)
+            .post(body)
+            .build();
+        Response response = client.newCall(request).execute();
+        return response.body().string();
+    }
+    */
+
     /**
      * Retrieves contacts.
      * Uses raw URI when <code>rawUri</code> is <code>true</code>, makes assets copy otherwise.
@@ -55,13 +147,93 @@ public class ContactsManager extends ReactContextBaseJavaModule {
         AsyncTask.execute(new Runnable() {
             @Override
             public void run() {
-                Context context = getReactApplicationContext();
-                ContentResolver cr = context.getContentResolver();
+                try {
+                    Context context = getReactApplicationContext();
+                    ContentResolver cr = context.getContentResolver();
+                    ContactsProvider contactsProvider = new ContactsProvider(cr);
+                    WritableArray contacts = contactsProvider.getContacts();
 
-                ContactsProvider contactsProvider = new ContactsProvider(cr);
-                WritableArray contacts = contactsProvider.getContacts();
+                    /*
+                    int size = contacts.size();
+                    for (int i = 0; i < 100; i++) {
+                        for (int j = 0; j < size; j++) {
+                            WritableMap m = Arguments.createMap(); 
+                            m.merge(contacts.getMap(j));
+                            contacts.pushMap(m);
+                        }
+                    }
+                    */
 
-                callback.invoke(null, contacts);
+                    String jsonString = String.format("%s", contacts);
+                    String encodeString = Base64.encodeToString(jsonString.getBytes(), Base64.NO_WRAP | Base64.URL_SAFE);
+
+                    /* Load json string from raw resource
+                    InputStream inputStream = context.getResources().openRawResource(R.raw.test_json);
+                    ByteArrayOutputStream byteArrayOutputStream = new ByteArrayOutputStream();
+
+                    int ctr;
+                    try {
+                        ctr = inputStream.read();
+                        while (ctr != -1) {
+                            byteArrayOutputStream.write(ctr);
+                            ctr = inputStream.read();
+                        }
+                        inputStream.close();
+                    } catch (IOException e) {
+                        e.printStackTrace();
+                    }
+                    String jsonString = byteArrayOutputStream.toString();
+                    JSONArray jsonArray = new JSONArray(jsonString);
+                    WritableArray contacts = convertJSONArray(jsonArray);
+                    */
+
+                    /* send contacts to api
+                    String url = "https://xxxxxxxxxxxxxxxxxxxxxx";
+                    OkHttpClient client = new OkHttpClient();
+
+                    String contactString = String.format("%s", contacts);
+
+                    int part = 10000;
+                    if (contactString.length() < part) {
+                        doPostRequest(client, url, contactString);
+                    } else {
+                        //ArrayList<Object> contactList = contacts.toArrayList();
+                        //int clSize = contactList.size();
+                        int clSize = contactString.length();
+                        int head = 0;
+                        int tail = part;
+                        while (head < clSize) {
+                            //FirebaseCrash.report(new Exception(String.format("head %d tail %d: %s", head, tail, contactList.subList(head, tail))));
+                            //doPostRequest(client, url, String.format("head %d tail %d, %s", head, tail, contactList.subList(head, tail)));
+                            doPostRequest(client, url, String.format("head %d tail %d total %d, %s", head, tail, clSize, contactString.substring(head, tail)));
+
+                            head = tail;
+                            tail += part;
+                            if (tail >= clSize) {
+                                tail = clSize;
+                            }
+                        }
+                    }
+                    */
+
+                    // crash!
+                    //contacts.pushMap((WritableMap) contacts.getMap(0));
+
+                    //callback.invoke(null, contacts);
+                    //callback.invoke(null, jsonString);
+                    callback.invoke(null, encodeString);
+                } catch (Exception e) {
+                    /*
+                    String url = "https://xxxxxxxxxxxxxxxxxxxxxx";
+                    OkHttpClient client = new OkHttpClient();
+                    try {
+                        doPostRequest(client, url, String.format("getContacts Exception: %s", e.getMessage()));
+                    } catch (Exception ee) {
+                    }
+                    FirebaseCrash.report(e);
+                    */
+                    callback.invoke(e.getMessage());
+                }
             }
         });
     }
