@@ -149,6 +149,9 @@ RCT_EXPORT_METHOD(getAllWithoutPhotos:(RCTResponseSenderBlock) callback)
     if(phoneLabelRef){
       CFRelease(phoneLabelRef);
     }
+    if ([phoneLabel isEqualToString:@"Powered by Whoscall"]) {
+      return nil;
+    }
     NSMutableDictionary* phone = [NSMutableDictionary dictionary];
     [phone setObject: phoneNumber forKey:@"number"];
     [phone setObject: phoneLabel forKey:@"label"];
