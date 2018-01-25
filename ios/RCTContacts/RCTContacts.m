@@ -177,6 +177,9 @@ RCT_EXPORT_METHOD(getAllWithoutPhotos:(RCTResponseSenderBlock) callback)
             if(!label) {
                 label = [CNLabeledValue localizedStringForLabel:@"other"];
             }
+            if ([label isEqualToString:@"Powered by Whoscall"]) {
+              return nil;
+            }
             [phone setObject: value forKey:@"number"];
             [phone setObject: label forKey:@"label"];
             [phoneNumbers addObject:phone];
