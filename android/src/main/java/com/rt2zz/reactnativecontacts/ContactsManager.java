@@ -31,7 +31,7 @@ import java.util.ArrayList;
 import java.util.Hashtable;
 
 //import com.facebook.react.bridge.WritableMap;
-//import com.facebook.react.bridge.Arguments;
+import com.facebook.react.bridge.Arguments;
 
 //import android.util.Log;
 //import com.google.firebase.crash.FirebaseCrash;
@@ -59,6 +59,8 @@ public class ContactsManager extends ReactContextBaseJavaModule {
     private static final String PERMISSION_AUTHORIZED = "authorized";
     private static final String PERMISSION_READ_CONTACTS = Manifest.permission.READ_CONTACTS;
     private static final int PERMISSION_REQUEST_CODE = 888;
+    private static final String CONTACT_SEARCH_TYPE_NAME = "name";
+    private static final String CONTACT_SEARCH_TYPE_NUMBER = "number";
 
     private static Callback requestCallback;
 
@@ -253,26 +255,43 @@ public class ContactsManager extends ReactContextBaseJavaModule {
     }
 
     /*
-     * Returns all contacts matching string
+     * Returns all contacts matching string by phone number with country code for advanced search
+     */
+    @ReactMethod
+    public void getContactsMatchingStringByNumber(final String searchString, final String countryCode, final Callback callback) {
+        getAllContactsMatchingString(searchString, CONTACT_SEARCH_TYPE_NUMBER, countryCode, callback);
+    }
+
+    /*
+     * Returns all contacts matching string by name
      */
     @ReactMethod
     public void getContactsMatchingString(final String searchString, final Callback callback) {
-        getAllContactsMatchingString(searchString, callback);
+        getAllContactsMatchingString(searchString, CONTACT_SEARCH_TYPE_NAME, null, callback);
     }
     /**
      * Retrieves contacts matching String.
      * Uses raw URI when <code>rawUri</code> is <code>true</code>, makes assets copy otherwise.
      * @param searchString String to match
+     * @param searchType search by name or number
+     * @param countryCode if searchType is number, this can be provided for advanced search
      * @param callback user provided callback to run at completion
      */
-    private void getAllContactsMatchingString(final String searchString, final Callback callback) {
+    private void getAllContactsMatchingString(final String searchString, final String searchType, final String countryCode, final Callback callback) {
         AsyncTask.execute(new Runnable() {
             @Override
             public void run() {
                 Context context = getReactApplicationContext();
                 ContentResolver cr = context.getContentResolver();
                 ContactsProvider contactsProvider = new ContactsProvider(cr);
-                WritableArray contacts = contactsProvider.getContactsMatchingString(searchString);
+                WritableArray contacts;
+                if (searchType.equals(CONTACT_SEARCH_TYPE_NAME)) {
+                    contacts = contactsProvider.getContactsMatchingStringByName(searchString);
+                } else if (searchType.equals(CONTACT_SEARCH_TYPE_NUMBER)) {
+                    contacts = contactsProvider.getContactsMatchingStringByNumber(searchString, countryCode);
+                } else {
+                    contacts = Arguments.createArray();
+                }
 
                 callback.invoke(null, contacts);
             }

@@ -26,6 +26,8 @@ public class ContactsProvider {
     public static final int ID_FOR_PROFILE_CONTACT = -1;
 
     private static final List<String> JUST_ME_PROJECTION = new ArrayList<String>() {{
+        add(ContactsContract.PhoneLookup._ID);
+        add(ContactsContract.PhoneLookup.DISPLAY_NAME);
         add(ContactsContract.Data.CONTACT_ID);
         add(ContactsContract.Data.LOOKUP_KEY);
         add(ContactsContract.Contacts.Data.MIMETYPE);
@@ -73,14 +75,14 @@ public class ContactsProvider {
         this.contentResolver = contentResolver;
     }
 
-    public WritableArray getContactsMatchingString(String searchString) {
+    private WritableArray getContactsMatchingString(Uri uri, String[] projection, String selection, String[] selectionArgs) {
         Map<String, Contact> matchingContacts;
         {
             Cursor cursor = contentResolver.query(
-                    ContactsContract.Data.CONTENT_URI,
-                    FULL_PROJECTION.toArray(new String[FULL_PROJECTION.size()]),
-                    ContactsContract.Contacts.DISPLAY_NAME_PRIMARY + " LIKE ?",
-                    new String[]{"%" + searchString + "%"},
+                    uri,
+                    projection,
+                    selection,
+                    selectionArgs,
                     null
             );
 
@@ -98,6 +100,46 @@ public class ContactsProvider {
             contacts.pushMap(contact.toMap());
         }
         return contacts;
+    }
+
+    public WritableArray getContactsMatchingStringByName(String searchString) {
+        Uri uri = ContactsContract.Data.CONTENT_URI;
+        String[] projection = FULL_PROJECTION.toArray(new String[FULL_PROJECTION.size()]);
+        String selection = ContactsContract.Contacts.DISPLAY_NAME_PRIMARY + " LIKE ?";
+        String[] selectionArgs = {"%" + searchString + "%"};
+        return getContactsMatchingString(uri, projection, selection, selectionArgs);
+    }
+
+    public WritableArray getContactsMatchingStringByNumber(String searchString, String countryCode) {
+        Uri uri = ContactsContract.Data.CONTENT_URI;
+        String[] projection = FULL_PROJECTION.toArray(new String[FULL_PROJECTION.size()]);
+
+        // ignore spaces between numbers
+        String replaceSpacesNumber = "REPLACE (" + Phone.NUMBER + ", \" \" , \"\" ) ";
+        String selection = replaceSpacesNumber + " LIKE ? ";
+
+        ArrayList<String> selectionArgsList = new ArrayList<String>();
+        selectionArgsList.add("%" + searchString + "%");
+
+        if (countryCode != null) {
+            if (searchString.startsWith("+" + countryCode)) {
+                // countryCode's length plus 1 for leading +
+                int countryCodeLen = countryCode.length() + 1;
+
+                // if searchString is +447xxxxx,
+                // newSearchString will be 07xxxxx
+                String newSearchString = "0" + searchString.substring(countryCodeLen);
+
+                // extend queries
+                selection = selection + " OR " + replaceSpacesNumber + " LIKE ? ";
+                selectionArgsList.add("%" + newSearchString + "%");
+            } else if (searchString.startsWith("0")) {
+            }
+        }
+
+        String[] selectionArgs = selectionArgsList.toArray(new String[selectionArgsList.size()]);
+
+        return getContactsMatchingString(uri, projection, selection, selectionArgs);
     }
 
     public WritableArray getContacts() {
